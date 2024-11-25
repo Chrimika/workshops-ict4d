@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workshops ICT4D</title>
+  
+  <!-- Materialize CSS -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+  <!-- Custom CSS -->
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f9f9f9;
+    }
+
+    .workshop-card {
+      margin-bottom: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+    }
+
+    .workshop-card img {
+    width: 100%; /* S'adapte à la largeur du conteneur */
+    max-height: 30vh; /* Limite la hauteur à 30% de la hauteur de l'écran */
+    object-fit:cover; /* Remplit le conteneur en respectant les proportions */
+    border-radius: 8px; /* Ajoute des coins arrondis */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Effet d'ombre pour un meilleur design */
+    }
+
+    .workshop-details {
+      padding: 15px;
+    }
+
+    .workshop-details h5 {
+      margin: 0;
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      font-family: cursive;
+      color: brown;
+    }
+
+    .prerequisites-icon {
+      float: right;
+      cursor: pointer;
+      color: #ff9800;
+    }
+
+    .modal {
+      max-width: 90%;
+    }
+
+    .modal-footer button {
+      width: 100%;
+    }
+    #workshop-details-modal {
+    height: 100vh
+    }
+
+  </style>
+  
+</head>
+<body>
+
+  <div class="container">
+    <h4 class="center-align">Workshops par ICT4D</h4>
+    <p class="center-align">Explorez nos ateliers pour développer vos compétences techniques !</p>
+    
+    <!-- Workshops Container -->
+    <div id="workshops-container" class="row"></div>
+  </div>
+
+  <!-- Modal for Prerequisites -->
+  <div id="prerequisites-modal" class="modal">
+    <div class="modal-content">
+      <h5>Prérequis</h5>
+      <p id="prerequisites-content"></p>
+    </div>
+    <div class="modal-footer">
+      <a href="#!" class="modal-close waves-effect waves-green btn-flat">Fermer</a>
+    </div>
+  </div>
+
+  <!-- Modal for Workshop Details -->
+  <div id="workshop-details-modal" class="modal">
+    <div class="modal-content">
+      <img id="modal-photo" src="" alt="Encadreur Photo" class="responsive-img">
+      <h5 id="modal-name"></h5>
+      <p id="modal-bio"></p>
+      <p><strong>Prix Atelier : </strong><span id="modal-price"></span> FCFA</p>
+      <p><strong>Durée Atelier : </strong><span id="modal-duration"></span> Semaines</p>
+    </div>
+    <div style="padding: 10px;justify-content: center;align-items: center;display: flex;flex-direction: column;">
+      <a id="modal-join" href="#" target="_blank" class="waves-effect waves-light btn green" style="width: 200px;">
+        <i class="material-icons left">chat</i>Rejoindre groupe
+      </a>
+      <a id="modal-program" href="#" target="_blank" class="waves-effect waves-light btn blue" style="width: 200px;margin-top: 10px;" >
+        <i class="material-icons left">visibility</i>Voir Programme
+      </a>
+    </div>
+  </div>
+
+  <!-- Materialize JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  
+  <!-- Firebase -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDocs,collection } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+    import {uploadBytesResumable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+  
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnKbQNE0uNCDmKRb8Q6NlE0_XGNQ5YJY8",
+      authDomain: "workshops-78f5a.firebaseapp.com",
+      projectId: "workshops-78f5a",
+      storageBucket: "workshops-78f5a.appspot.com",
+      messagingSenderId: "605216259136",
+      appId: "1:605216259136:web:45e7576a1a77ceda5873a5"
+    };
+  
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+  
+    // Load Workshops Data
+    document.addEventListener('DOMContentLoaded', async () => {
+      const workshopsContainer = document.getElementById('workshops-container');
+      const prerequisitesModal = document.getElementById('prerequisites-modal');
+      const workshopDetailsModal = document.getElementById('workshop-details-modal');
+      const prerequisitesContent = document.getElementById('prerequisites-content');
+      const modalPhoto = document.getElementById('modal-photo');
+      const modalName = document.getElementById('modal-name');
+      const modalBio = document.getElementById('modal-bio');
+      const modalPrice = document.getElementById('modal-price');
+      const modalDuration = document.getElementById('modal-duration');
+      const modalJoin = document.getElementById('modal-join');
+      const modalProgram = document.getElementById('modal-program');
+  
+      // Initialize Materialize Modals
+      M.Modal.init(prerequisitesModal);
+      M.Modal.init(workshopDetailsModal);
+  
+      const modalInstances = M.Modal.getInstance(workshopDetailsModal);
+  
+      // Fetch Collection
+      const encadreursSnapshot = await getDocs(collection(db, "encadreurs"));
+      encadreursSnapshot.forEach(doc => {
+        const data = doc.data();
+        const card = document.createElement('div');
+        card.className = 'col s12 m6 workshop-card';
+        card.innerHTML = `
+          <img src="${data.photo}" alt="Photo">
+          <div class="workshop-details">
+            <h5 style='height:40px;align-items:center';justify-content:center;display:flex>${data.domaine}</h5>
+            <div style="display: flex; justify-content: center; align-items: center;">
+                <p style="width:100%"><strong style="font-size:30px;">${data.prixAtelier}</strong> FCFA</p>
+                <p style="width:100%"><strong style="font-size:30px">${data.maxParticipants}</strong> places</p>
+                <i class="material-icons prerequisites-icon" data-prerequisites="${data.prerequis}">help_outline</i>
+            </div>
+          </div>
+        `;
+        
+        // Show Prerequisites Modal
+        card.querySelector('.prerequisites-icon').addEventListener('click', (e) => {
+          e.stopPropagation();
+          prerequisitesContent.textContent = e.target.getAttribute('data-prerequisites');
+          const modal = M.Modal.getInstance(prerequisitesModal);
+          modal.open();
+        });
+  
+        // Show Workshop Details Modal
+        card.addEventListener('click', () => {
+          modalPhoto.src = data.photo;
+          modalName.textContent = data.nom;
+          modalBio.textContent = data.bio;
+          modalPrice.textContent = data.prixAtelier;
+          modalDuration.textContent = data.dureeAtelier;
+          modalJoin.href = data.lienGroupe;
+          modalProgram.href = data.programme;
+          modalInstances.open();
+        });
+  
+        workshopsContainer.appendChild(card);
+      });
+    });
+  </script>
+  
+</body>
+</html>

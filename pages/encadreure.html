@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulaire Encadreur</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Loader styles */
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            display: none; /* Cacher le loader par défaut */
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-5">
+        <h2 class="text-center">Ajouter un Encadreur</h2>
+        <form id="encadreurForm">
+            <div class="form-group">
+                <label for="nom">Nom</label>
+                <input type="text" class="form-control" id="nom" required>
+            </div>
+            <div class="form-group">
+                <label for="photo">Photo</label>
+                <input type="file" class="form-control" id="photo" accept="image/*" required>
+            </div>
+            <div class="form-group">
+                <label for="domaine">Domaine</label>
+                <select class="form-control" id="domaine" required>
+                    <option value="DEVELOPPEMENT MOBILE">Développement Mobile</option>
+                    <option value="DEVELOPPEMENT WEB">Développement Web</option>
+                    <option value="DATABASE">Database</option>
+                    <option value="MAINTENANCE INFORMATIQUE">Maintenance Informatique</option>
+                    <option value="RESEAU INFORMATIQUE">Réseau Informatique</option>
+                    <option value="GRAPHISME">Graphisme</option>
+                    <option value="MARKETING DIGITAL">Marketing Digital</option>
+                    <option value="CYBER SECURITE">Cyber Sécurité</option>
+                    <option value="UI/UX DESIGN">UI/UX Design</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="bio">Bio</label>
+                <textarea class="form-control" id="bio" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="prixAtelier">Prix de l'atelier</label>
+                <input type="number" class="form-control" id="prixAtelier" max="5000" required>
+            </div>
+            <div class="form-group">
+                <label for="dureeAtelier">Durée de l'atelier (en semaines)</label>
+                <input type="number" class="form-control" id="dureeAtelier" max="3" required>
+            </div>
+            <div class="form-group">
+                <label for="maxParticipants">Max Participants</label>
+                <input type="number" class="form-control" id="maxParticipants" required>
+            </div>
+            <div class="form-group">
+                <label for="prerequis">Prérequis</label>
+                <input type="text" class="form-control" id="prerequis" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Soumettre</button>
+        </form>
+        <div class="loader" id="loader"></div> <!-- Loader pour indiquer le chargement -->
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js"></script>
+
+    <script>
+        // Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnKbQNE0uNCDmKRb8Q6NlE0_XGNQ5YJY8",
+            authDomain: "workshops-78f5a.firebaseapp.com",
+            projectId: "workshops-78f5a",
+            storageBucket: "workshops-78f5a.appspot.com",
+            messagingSenderId: "605216259136",
+            appId: "1:605216259136:web:45e7576a1a77ceda5873a5"
+        };
+
+        // Initialiser Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Gestion de la soumission du formulaire
+        document.getElementById('encadreurForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('loader').style.display = 'block'; // Afficher le loader
+
+            // Récupération des données du formulaire
+            const nom = document.getElementById('nom').value.trim();
+            const photoFile = document.getElementById('photo').files[0];
+            const domaine = document.getElementById('domaine').value;
+            const bio = document.getElementById('bio').value.trim();
+            const prixAtelier = parseFloat(document.getElementById('prixAtelier').value);
+            const dureeAtelier = parseInt(document.getElementById('dureeAtelier').value);
+            const maxParticipants = parseInt(document.getElementById('maxParticipants').value);
+            const prerequis = document.getElementById('prerequis').value.trim();
+
+            try {
+                // Vérifier si un encadreur existe déjà dans le domaine sélectionné
+                const querySnapshot = await db.collection('encadreurs').where('domaine', '==', domaine).get();
+
+                if (!querySnapshot.empty) {
+                    alert('Un encadreur existe déjà dans ce domaine. Veuillez choisir un autre domaine.');
+                } else {
+                    // Téléchargement de la photo dans Firebase Storage
+                    const storageRef = storage.ref(`photos_encadreurs/${Date.now()}_${photoFile.name}`);
+                    const snapshot = await storageRef.put(photoFile);
+                    const photoURL = await snapshot.ref.getDownloadURL();
+
+                    // Ajouter les informations de l'encadreur dans Firestore
+                    await db.collection('encadreurs').add({
+                        nom,
+                        photo: photoURL,
+                        domaine,
+                        bio,
+                        prixAtelier,
+                        dureeAtelier,
+                        maxParticipants,
+                        prerequis
+                    });
+
+                    alert('Encadreur ajouté avec succès !');
+                    document.getElementById('encadreurForm').reset();
+                }
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout : ', error);
+                alert('Une erreur est survenue. Veuillez réessayer.');
+            } finally {
+                document.getElementById('loader').style.display = 'none'; // Cacher le loader
+            }
+        });
+    </script>
+</body>
+</html>
